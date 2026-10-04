@@ -1,0 +1,23 @@
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+
+# Build and dependency output
+hd/target/
+qd/node_modules/
+qd/dist/
+
+# IDE and local tooling state
+.idea/
+hd/.idea/
+qd/.idea/
+*.iml
+
+# Machine-specific Maven settings
+hd/maven-settings.xml
+hd/maven-global-settings.xml
+
+# Temporary files
+*.tmp
+*.log
