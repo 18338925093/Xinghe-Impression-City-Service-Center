@@ -37,7 +37,16 @@ $env:XINGHE_AGENT_MODEL = "gpt-4o-mini"
 
 ## 初始化数据库
 
-执行 `hd/src/main/resources/db/schema.sql` 创建客服、商品和物流表。
+应用启动时会自动执行 `hd/src/main/resources/db/schema.sql`，创建客服、商品、订单和物流表。请先创建 MySQL 数据库 `xinghe_trade`，再启动后端。
+
+开发环境默认可通过根目录 `.env` 中的 `XINGHE_SEED_ENABLED=true` 写入演示数据：
+
+- 演示用户：`user-1001`
+- 演示订单：`XH2026100300000001`
+- 演示商品：`10001`
+- 演示物流单号：`XH-DEMO-TRACK-001`
+
+关闭演示数据时，将 `XINGHE_SEED_ENABLED` 设置为 `false`。
 
 ## 启动依赖
 
@@ -45,7 +54,7 @@ $env:XINGHE_AGENT_MODEL = "gpt-4o-mini"
 
 ```bash
 cd hd
-mvn spring-boot:run
+mvn -s maven-settings.xml spring-boot:run
 ```
 
 本地未启动 RabbitMQ 时，应用默认不会启动订单超时消费者，因此不会反复打印连接失败日志。需要启用 RabbitMQ 订单超时取消功能时，先启动 RabbitMQ，再设置：
@@ -79,6 +88,12 @@ Content-Type: application/json
 GET /api/customer-service/orders/{orderNo}
 GET /api/customer-service/orders/{orderNo}/logistics
 X-User-Id: user-1001
+```
+
+阶段 A 可直接查询演示订单：
+
+```text
+XH2026100300000001
 ```
 
 商品搜索：

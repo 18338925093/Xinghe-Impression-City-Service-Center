@@ -1,10 +1,8 @@
 package com.xinghe.trade.customer;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.HashOperations;
-import org.springframework.data.redis.core.RedisTemplate;
-
-import java.util.Map;
+import com.xinghe.trade.order.TradeOrder;
+import com.xinghe.trade.order.TradeOrderMapper;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
@@ -12,12 +10,14 @@ import static org.mockito.Mockito.*;
 class OrderQueryServiceTest {
     @Test
     void rejectsOrderOwnedByAnotherUser() {
-        RedisTemplate<String, Object> redis = mock(RedisTemplate.class);
-        HashOperations<String, Object, Object> hashes = mock(HashOperations.class);
-        when(redis.opsForHash()).thenReturn(hashes);
-        when(hashes.entries("order:XH12345678")).thenReturn(Map.of("userId", "user-1", "status", "PAID"));
+        TradeOrderMapper orderMapper = mock(TradeOrderMapper.class);
+        TradeOrder order = new TradeOrder();
+        order.setOrderNo("XH12345678");
+        order.setUserId("user-1");
+        order.setStatus("PAID");
+        when(orderMapper.selectById("XH12345678")).thenReturn(order);
 
-        OrderQueryService service = new OrderQueryService(redis);
+        OrderQueryService service = new OrderQueryService(orderMapper);
         assertThatThrownBy(() -> service.query("user-2", "XH12345678"))
                 .isInstanceOf(SecurityException.class);
     }

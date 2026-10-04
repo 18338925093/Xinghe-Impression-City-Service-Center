@@ -1,6 +1,7 @@
 package com.xinghe.trade.customer;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.xinghe.trade.logistics.LogisticsQueryService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class CustomerConversationService {
     private final FaqService faqService;
     private final OrderQueryService orderQueryService;
     private final CustomerAgentService customerAgentService;
+    private final LogisticsQueryService logisticsQueryService;
     private final CustomerConversationPersistence persistence;
 
     public CustomerConversationService(CustomerServiceSessionMapper sessionMapper,
@@ -35,6 +37,7 @@ public class CustomerConversationService {
                                        FaqService faqService,
                                        OrderQueryService orderQueryService,
                                        CustomerAgentService customerAgentService,
+                                       LogisticsQueryService logisticsQueryService,
                                        CustomerConversationPersistence persistence) {
         this.sessionMapper = sessionMapper;
         this.messageMapper = messageMapper;
@@ -42,6 +45,7 @@ public class CustomerConversationService {
         this.faqService = faqService;
         this.orderQueryService = orderQueryService;
         this.customerAgentService = customerAgentService;
+        this.logisticsQueryService = logisticsQueryService;
         this.persistence = persistence;
     }
 
@@ -93,6 +97,7 @@ public class CustomerConversationService {
     private Reply route(String userId, String content, List<String> context) {
         String orderNo = extractOrderNo(content);
         boolean followUp = context.size() > 1 && containsAny(content, "那个", "它", "这单", "这个", "上述", "刚才", "我的订单", "订单", "物流", "快递", "配送", "状态");
+        if (orderNo == null && followUp) orderNo = extractOrderNo(String.join(" ", context));
         if (orderNo == null && !followUp) {
             Optional<FaqService.FaqAnswer> faqAnswer = faqService.answer(content);
             if (faqAnswer.isPresent()) {
@@ -106,7 +111,9 @@ public class CustomerConversationService {
 
         try {
             if (orderNo != null && containsAny(content, "物流", "快递", "配送")) {
-                return new Reply("LOGISTICS_QUERY", "已识别订单 " + orderNo + "，物流查询接口已准备就绪；当前订单物流状态请以物流同步记录为准。" );
+                // 阶段 A：Agent 不可用时也必须调用真实物流查询服务，不能返回固定占位话术。
+                LogisticsQueryService.LogisticsView logistics = logisticsQueryService.query(userId, orderNo);
+                return new Reply("LOGISTICS_QUERY", formatLogistics(logistics));
             }
             if (orderNo != null && containsAny(content, "订单", "订单号", "状态", "支付", "付款")) {
                 OrderQueryService.OrderView order = orderQueryService.query(userId, orderNo);
@@ -125,6 +132,13 @@ public class CustomerConversationService {
     private String formatOrder(OrderQueryService.OrderView order) {
         return "订单 " + order.orderNo() + " 当前状态为“" + order.status() + "”，商品 SKU：" + order.skuId()
                 + "，数量：" + order.quantity() + "，金额：" + order.amount() + "。";
+    }
+
+    private String formatLogistics(LogisticsQueryService.LogisticsView logistics) {
+        if ("NOT_SYNCED".equals(logistics.status())) return logistics.description();
+        return "订单 " + logistics.orderNo() + " 的物流状态为“" + logistics.status()
+                + "”，承运公司：" + logistics.company() + "，运单号：" + logistics.trackingNo()
+                + "。最新动态：" + logistics.description();
     }
 
     private CustomerServiceSession requireOwnedSession(String userId, String sessionId) {

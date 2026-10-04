@@ -1,40 +1,41 @@
 package com.xinghe.trade.customer;
 
-import org.springframework.data.redis.core.RedisTemplate;
+import com.xinghe.trade.order.TradeOrder;
+import com.xinghe.trade.order.TradeOrderMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.Map;
+import java.time.LocalDateTime;
 
 @Service
 public class OrderQueryService {
-    private final RedisTemplate<String, Object> redis;
+    private final TradeOrderMapper orderMapper;
 
-    public OrderQueryService(RedisTemplate<String, Object> redis) {
-        this.redis = redis;
+    public OrderQueryService(TradeOrderMapper orderMapper) {
+        this.orderMapper = orderMapper;
     }
 
     public OrderView query(String userId, String orderNo) {
-        Map<Object, Object> values = redis.opsForHash().entries("order:" + orderNo);
-        if (values.isEmpty()) throw new IllegalArgumentException("订单不存在");
-        String ownerId = text(values.get("userId"));
-        if (ownerId == null || !ownerId.equals(userId)) throw new SecurityException("无权查询该订单");
+        // 阶段 A：服务层也校验身份和订单号，防止内部调用绕过 Controller 后出现空指针。
+        if (!StringUtils.hasText(userId) || !StringUtils.hasText(orderNo)) {
+            throw new IllegalArgumentException("用户和订单号不能为空");
+        }
+        TradeOrder order = orderMapper.selectById(orderNo);
+        if (order == null) throw new IllegalArgumentException("订单不存在");
+        if (!userId.equals(order.getUserId())) throw new SecurityException("无权查询该订单");
         return new OrderView(
                 orderNo,
-                ownerId,
-                longValue(values.get("skuId")),
-                intValue(values.get("quantity")),
-                decimalValue(values.get("amount")),
-                text(values.get("status")),
-                text(values.get("createdAt"))
+                order.getUserId(),
+                order.getSkuId(),
+                order.getQuantity(),
+                order.getAmount(),
+                order.getStatus(),
+                format(order.getCreatedAt())
         );
     }
 
-    private String text(Object value) { return value == null ? null : String.valueOf(value); }
-    private Long longValue(Object value) { return value == null ? null : Long.valueOf(text(value)); }
-    private Integer intValue(Object value) { return value == null ? null : Integer.valueOf(text(value)); }
-    private BigDecimal decimalValue(Object value) { return value == null ? null : new BigDecimal(text(value)); }
+    private String format(LocalDateTime value) { return value == null ? null : value.toString(); }
 
     public record OrderView(String orderNo, String userId, Long skuId, Integer quantity,
                             BigDecimal amount, String status, String createdAt) {}

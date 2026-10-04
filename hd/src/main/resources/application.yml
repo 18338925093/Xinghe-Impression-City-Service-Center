@@ -3,6 +3,10 @@ spring:
     import:
       - optional:file:./.env[.properties]
       - optional:file:../.env[.properties]
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
   application:
     name: xinghe-trade-center
   datasource:
@@ -26,6 +30,8 @@ mybatis-plus:
 server:
   port: ${SERVER_PORT:8081}
 xinghe:
+  seed:
+    enabled: ${XINGHE_SEED_ENABLED:false}
   messaging:
     enabled: ${XINGHE_MESSAGING_ENABLED:false}
   customer-service:
