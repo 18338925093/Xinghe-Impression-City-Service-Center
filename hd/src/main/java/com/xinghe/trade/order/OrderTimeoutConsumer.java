@@ -31,6 +31,7 @@ public class OrderTimeoutConsumer {
 
     @RabbitListener(queues = "xinghe.order.cancel")
     public void cancel(String orderNo) {
+        // 消费订单超时消息，仅取消仍处于待支付状态的订单并恢复库存。
         TradeOrder order = orderMapper.selectById(orderNo);
         if (order == null) return;
         TradeOrder update = new TradeOrder();
@@ -46,6 +47,7 @@ public class OrderTimeoutConsumer {
 
     // 阶段 A：用 Lua 将库存恢复和幂等标记放入同一个 Redis 原子操作，支持失败重试。
     private void restoreStockOnce(TradeOrder order) {
+        // 使用订单级幂等标记，确保消息重复投递不会重复增加库存。
         String stockKey = "stock:sku:" + order.getSkuId();
         String markerKey = "stock:restored:" + order.getOrderNo();
         redis.execute(RESTORE_STOCK_SCRIPT, List.of(stockKey, markerKey),

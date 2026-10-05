@@ -60,6 +60,7 @@ public class CustomerAgentService {
     }
 
     public Optional<String> reply(String userId, List<String> context) {
+        // 仅在 Agent 已启用且配置了密钥时调用模型；失败时返回空结果交给规则路由兜底。
         if (!properties.isEnabled() || !StringUtils.hasText(properties.getApiKey())) return Optional.empty();
         try {
             return Optional.ofNullable(run(userId, context)).filter(StringUtils::hasText);
@@ -70,6 +71,7 @@ public class CustomerAgentService {
     }
 
     private String run(String userId, List<String> context) {
+        // 通过多轮工具调用完成订单、物流或商品查询，并限制单次请求的工具调用次数。
         ArrayNode messages = objectMapper.createArrayNode();
         messages.add(objectMapper.createObjectNode().put("role", "system").put("content", SYSTEM_PROMPT));
         context.stream().skip(Math.max(0, context.size() - 20)).forEach(entry -> addContextMessage(messages, entry));
@@ -110,6 +112,7 @@ public class CustomerAgentService {
     }
 
     private JsonNode parseArguments(String arguments) {
+        // 模型返回的工具参数必须是合法 JSON，解析失败直接触发 Agent 降级。
         try {
             return objectMapper.readTree(arguments);
         } catch (JsonProcessingException ex) {
@@ -126,6 +129,7 @@ public class CustomerAgentService {
     }
 
     private void addContextMessage(ArrayNode messages, String entry) {
+        // 将 Redis 中保存的用户和客服上下文转换为模型可识别的消息角色。
         if (entry == null) return;
         String role;
         String content;
@@ -142,6 +146,7 @@ public class CustomerAgentService {
     }
 
     private ObjectNode createRequest(ArrayNode messages) {
+        // 构造系统提示词、历史消息和只读工具白名单，禁止模型执行写操作。
         ObjectNode request = objectMapper.createObjectNode();
         request.put("model", properties.getModel());
         request.put("temperature", 0.2);
@@ -173,6 +178,7 @@ public class CustomerAgentService {
     }
 
     private ObjectNode runTool(String userId, String name, JsonNode arguments) {
+        // 通过固定的工具名称分发请求，未知工具不会被执行。
         return switch (name) {
             case "query_order" -> queryOrder(userId, arguments.path("orderNo").asText(""));
             case "query_logistics" -> queryLogistics(userId, arguments.path("orderNo").asText(""));
@@ -182,6 +188,7 @@ public class CustomerAgentService {
     }
 
     private ObjectNode queryOrder(String userId, String orderNo) {
+        // 订单查询始终使用服务端登录用户身份，避免模型参数绕过数据归属校验。
         if (!ORDER_NO.matcher(orderNo).matches()) return toolError("INVALID_ORDER_NO", "请提供有效订单号。");
         try {
             OrderQueryService.OrderView order = orderQueryService.query(userId, orderNo.toUpperCase(Locale.ROOT));
@@ -198,6 +205,7 @@ public class CustomerAgentService {
     }
 
     private ObjectNode queryLogistics(String userId, String orderNo) {
+        // 物流查询复用订单归属校验，只返回当前用户订单的物流信息。
         if (!ORDER_NO.matcher(orderNo).matches()) return toolError("INVALID_ORDER_NO", "请提供有效订单号。");
         try {
             LogisticsQueryService.LogisticsView logistics = logisticsQueryService.query(userId, orderNo.toUpperCase(Locale.ROOT));
@@ -214,6 +222,7 @@ public class CustomerAgentService {
     }
 
     private ObjectNode searchProducts(String keyword) {
+        // 商品工具只搜索在售商品，并限制返回条数和文本长度，控制模型上下文大小。
         if (!StringUtils.hasText(keyword) || keyword.length() > 80) return toolError("INVALID_KEYWORD", "请提供不超过 80 个字符的商品关键词。");
         ArrayNode results = objectMapper.createArrayNode();
         List<Product> products = productQueryService.search(keyword.trim());
@@ -253,6 +262,7 @@ public class CustomerAgentService {
     }
 
     private String truncate(String value, int maxLength) {
+        // 截断商品描述等外部数据，避免过长内容占用模型上下文。
         if (value == null || value.length() <= maxLength) return value;
         return value.substring(0, maxLength);
     }

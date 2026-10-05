@@ -15,6 +15,7 @@ public class LogisticsQueryService {
     }
 
     public LogisticsView query(String userId, String orderNo) {
+        // 先复用订单归属校验，再读取物流记录；没有同步记录时返回明确的未同步状态。
         orderQueryService.query(userId, orderNo);
         LogisticsRecord record = mapper.selectOne(new LambdaQueryWrapper<LogisticsRecord>().eq(LogisticsRecord::getOrderNo, orderNo));
         if (record == null) return new LogisticsView(orderNo, null, null, "NOT_SYNCED", "物流信息尚未同步", null);

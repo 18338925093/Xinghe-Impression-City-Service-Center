@@ -13,6 +13,7 @@ public class ProductQueryService {
     public ProductQueryService(ProductMapper mapper) { this.mapper = mapper; }
 
     public List<Product> search(String keyword) {
+        // 仅查询在售商品，按更新时间排序并限制最多 20 条，满足客服快速检索场景。
         // 阶段 A：商品搜索入口限制关键词长度，避免超长输入拖慢数据库查询。
         if (keyword != null && keyword.length() > 80) throw new IllegalArgumentException("商品关键词不能超过 80 个字符");
         LambdaQueryWrapper<Product> query = new LambdaQueryWrapper<Product>()

@@ -17,6 +17,7 @@ public class OrderQueryService {
     }
 
     public OrderView query(String userId, String orderNo) {
+        // 从 MySQL 查询订单并校验用户归属，客服和 Agent 都复用这一安全边界。
         // 阶段 A：服务层也校验身份和订单号，防止内部调用绕过 Controller 后出现空指针。
         if (!StringUtils.hasText(userId) || !StringUtils.hasText(orderNo)) {
             throw new IllegalArgumentException("用户和订单号不能为空");

@@ -16,6 +16,7 @@ public class OrderController {
     @PostMapping
     public ApiResponse<OrderService.OrderResult> create(@RequestHeader("X-User-Id") String userId,
                                                         @Valid @RequestBody CreateOrderRequest request) {
+        // 创建订单前校验请求头用户与请求体用户一致，避免冒用其他用户下单。
         requireSameUser(userId, request.userId());
         return ApiResponse.ok(service.create(request));
     }
@@ -23,6 +24,7 @@ public class OrderController {
     public ApiResponse<OrderService.OrderResult> pay(@PathVariable String orderNo,
                                                      @RequestHeader("X-User-Id") String userId,
                                                      @RequestHeader("Idempotency-Token") String token) {
+        // 使用幂等 Token 发起支付，重复请求由服务层返回安全结果。
         return ApiResponse.ok(service.pay(orderNo, requireUser(userId), token));
     }
 

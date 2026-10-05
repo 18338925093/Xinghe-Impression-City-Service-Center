@@ -27,6 +27,7 @@ public class OpenAiCompatibleChatClient implements CustomerAgentClient {
 
     @Override
     public JsonNode complete(ObjectNode requestBody) {
+        // 调用 OpenAI-compatible 聊天接口；网络、超时或非 2xx 响应交由上层降级处理。
         if (!StringUtils.hasText(properties.getBaseUrl())) throw new IllegalStateException("Agent base URL is not configured");
         String baseUrl = properties.getBaseUrl().trim();
         while (baseUrl.endsWith("/")) baseUrl = baseUrl.substring(0, baseUrl.length() - 1);

@@ -66,6 +66,7 @@ function selectedStorageKey(id = userId.value) {
 }
 
 function readLocalSessions(id = userId.value) {
+  // 从浏览器本地缓存恢复指定联调用户的会话列表，后端仍是消息数据的最终来源。
   try {
     const data = JSON.parse(localStorage.getItem(sessionStorageKey(id)) || '[]')
     return Array.isArray(data) ? data : []
@@ -75,11 +76,13 @@ function readLocalSessions(id = userId.value) {
 }
 
 function saveLocalSessions() {
+  // 保存会话摘要和当前选中会话，刷新页面后可以快速恢复工作台状态。
   localStorage.setItem(sessionStorageKey(), JSON.stringify(sessions.value))
   localStorage.setItem(selectedStorageKey(), selectedSessionId.value)
 }
 
 function showNotice(message, kind = 'error') {
+  // 显示带自动消失计时的统一提示，避免请求错误散落在各个业务函数中。
   notice.value = message
   noticeKind.value = kind
   clearTimeout(noticeTimer)
@@ -93,6 +96,7 @@ function headers(extra = {}) {
 }
 
 async function readApiResponse(response) {
+  // 统一解析 JSON 响应、业务错误码和 HTTP 错误，供查询接口复用。
   const raw = await response.text()
   let result
   try {
@@ -111,11 +115,13 @@ async function readApiResponse(response) {
 }
 
 async function apiGet(url) {
+  // 使用当前联调用户身份调用只读查询接口。
   const response = await fetch(url, { headers: headers() })
   return readApiResponse(response)
 }
 
 async function createSession() {
+  // 创建后端客服会话，并同步更新前端本地会话导航。
   if (!userId.value.trim()) {
     showNotice('请先设置联调用户 ID')
     userDialogOpen.value = true
@@ -150,6 +156,7 @@ async function createSession() {
 }
 
 async function loadHistory(sessionId, { quiet = false } = {}) {
+  // 切换会话时加载历史消息；无效会话会从本地列表中清理。
   isLoadingHistory.value = true
   messages.value = []
   try {
@@ -174,6 +181,7 @@ async function loadHistory(sessionId, { quiet = false } = {}) {
 }
 
 async function selectSession(sessionId) {
+  // 记录用户选择并加载对应会话的消息历史。
   if (sessionId === selectedSessionId.value) {
     closeMobileSessions()
     return
@@ -202,6 +210,7 @@ function updateSessionTitle(content) {
 }
 
 function parseSseMessage(response) {
+  // 逐行解析客服接口的 SSE message/error 事件，兼容分块传输和多行 data。
   return new Promise(async (resolve, reject) => {
     let answer = null
     let eventName = 'message'
@@ -275,6 +284,7 @@ function parseSseMessage(response) {
 }
 
 async function sendMessage() {
+  // 发送用户消息并接收客服 SSE 回复，同时维护本地会话摘要和滚动位置。
   const content = draft.value.trim()
   if (!content || isSending.value) return
   if (!userId.value.trim()) {
@@ -350,6 +360,7 @@ function openUserDialog() {
 }
 
 async function applyUser() {
+  // 切换联调用户后隔离其本地会话，并按该用户恢复最近会话。
   const nextUserId = userDraft.value.trim()
   if (!nextUserId) return
   if (nextUserId === userId.value) {
@@ -375,6 +386,7 @@ function openUserSettings() {
 }
 
 async function lookupOrder() {
+  // 调用订单查询工具并展示当前用户可访问的订单信息。
   const value = orderNo.value.trim()
   if (!value) {
     toolError.value = '请输入订单号'
@@ -394,6 +406,7 @@ async function lookupOrder() {
 }
 
 async function lookupLogistics() {
+  // 调用物流查询工具，订单归属和未同步状态由后端负责判断。
   const value = orderNo.value.trim()
   if (!value) {
     toolError.value = '请输入订单号'
@@ -413,6 +426,7 @@ async function lookupLogistics() {
 }
 
 async function searchProducts() {
+  // 搜索后端返回的在售商品列表，并在工具面板中展示结果。
   const keyword = productKeyword.value.trim()
   if (!keyword) {
     toolError.value = '请输入商品关键词'
@@ -438,6 +452,7 @@ function clearToolResults() {
 }
 
 function updateScrollButton() {
+  // 根据消息区域距底部的距离决定是否显示“回到底部”按钮。
   const element = messageList.value
   if (!element) {
     showScrollToBottom.value = false
@@ -449,6 +464,7 @@ function updateScrollButton() {
 }
 
 async function scrollToBottom({ smooth = false } = {}) {
+  // 在消息更新后滚动到最新内容，用户手动上滑时保留查看历史的位置。
   await nextTick()
   if (!messageList.value) return
   if (smooth) {
@@ -502,6 +518,7 @@ function intentLabel(intent) {
 }
 
 function openTool(tool) {
+  // 切换订单或商品查询工具，并清理上一个工具的结果。
   activeTool.value = tool
   clearToolResults()
   closeMobileTools()
@@ -510,6 +527,7 @@ function openTool(tool) {
 watch(messages, scrollToBottom, { deep: true })
 
 onMounted(async () => {
+  // 页面初始化时恢复本地会话选择，并静默加载最近一次会话。
   sessions.value = readLocalSessions()
   const lastSelected = localStorage.getItem(selectedStorageKey())
   selectedSessionId.value = sessions.value.some((item) => item.sessionId === lastSelected)

@@ -43,10 +43,12 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        // 应用启动时按配置写入可重复执行的开发演示数据。
         seed();
     }
 
     private void seed() {
+        // 初始化商品、Redis 库存、订单明细和物流记录，支撑客服联调演示。
         LocalDateTime now = LocalDateTime.now();
         Product product = productMapper.selectById(DEMO_PRODUCT_ID);
         if (product == null) {

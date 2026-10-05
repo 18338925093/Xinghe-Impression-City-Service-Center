@@ -38,6 +38,7 @@ public class OrderService {
 
     @Transactional
     public OrderResult create(OrderController.CreateOrderRequest request) {
+        // 校验下单参数、服务端重算金额、扣减 Redis 库存并落库订单明细。
         if (request == null || request.userId() == null || request.userId().isBlank()) throw new IllegalArgumentException("用户 ID 不能为空");
         if (request.skuId() == null) throw new IllegalArgumentException("商品 ID 不能为空");
         if (request.quantity() == null || request.quantity() <= 0) throw new IllegalArgumentException("购买数量必须大于 0");
@@ -96,6 +97,7 @@ public class OrderService {
     }
 
     public OrderResult pay(String orderNo, String userId, String token) {
+        // 通过 Redis Token 防重并使用条件更新完成支付，和超时取消形成互斥状态流转。
         if (token == null || token.isBlank()) throw new IllegalArgumentException("Idempotency-Token 不能为空");
         TradeOrder order = orderMapper.selectById(orderNo);
         if (order == null) throw new IllegalArgumentException("订单不存在");
@@ -145,6 +147,7 @@ public class OrderService {
     }
 
     private MessagePostProcessor delayed(long millis) {
+        // 为订单超时消息设置过期时间，由死信交换机转发到取消队列。
         return message -> {
             message.getMessageProperties().setExpiration(String.valueOf(millis));
             return message;

@@ -51,6 +51,7 @@ public class CustomerConversationService {
 
     @Transactional
     public SessionView createSession(String userId) {
+        // 创建数据库会话记录，后续消息和 Redis 上下文都通过 sessionId 关联。
         LocalDateTime now = LocalDateTime.now();
         CustomerServiceSession session = new CustomerServiceSession();
         session.setSessionId(UUID.randomUUID().toString().replace("-", ""));
@@ -63,6 +64,7 @@ public class CustomerConversationService {
     }
 
     public MessageView reply(String userId, String sessionId, String content) {
+        // 读取短期上下文后统一路由问题，并把用户消息和客服回复持久化。
         requireOwnedSession(userId, sessionId);
         List<String> context = new ArrayList<>();
         List<String> previousContext = redis.opsForList().range("customer:session:context:" + sessionId, 0, -1);
@@ -80,10 +82,12 @@ public class CustomerConversationService {
     }
 
     public SessionView requireSession(String userId, String sessionId) {
+        // 查询会话前校验用户归属，防止通过修改会话 ID 访问他人记录。
         return toSessionView(requireOwnedSession(userId, sessionId));
     }
 
     public List<MessageView> history(String userId, String sessionId) {
+        // 返回当前用户会话的完整消息历史，按创建时间升序供前端恢复界面。
         requireOwnedSession(userId, sessionId);
         return messageMapper.selectList(new LambdaQueryWrapper<CustomerServiceMessage>()
                         .eq(CustomerServiceMessage::getSessionId, sessionId)
@@ -95,6 +99,7 @@ public class CustomerConversationService {
     }
 
     private Reply route(String userId, String content, List<String> context) {
+        // 按订单号和上下文识别追问，优先 FAQ，再尝试 Agent，最后走确定性查询兜底。
         String orderNo = extractOrderNo(content);
         boolean followUp = context.size() > 1 && containsAny(content, "那个", "它", "这单", "这个", "上述", "刚才", "我的订单", "订单", "物流", "快递", "配送", "状态");
         if (orderNo == null && followUp) orderNo = extractOrderNo(String.join(" ", context));
@@ -142,6 +147,7 @@ public class CustomerConversationService {
     }
 
     private CustomerServiceSession requireOwnedSession(String userId, String sessionId) {
+        // 统一校验用户和会话参数，并确认会话属于当前用户。
         if (!StringUtils.hasText(userId) || !StringUtils.hasText(sessionId)) throw new IllegalArgumentException("用户或会话信息不能为空");
         CustomerServiceSession session = sessionMapper.selectById(sessionId);
         if (session == null) throw new IllegalArgumentException("客服会话不存在");
@@ -162,6 +168,7 @@ public class CustomerConversationService {
     }
 
     private void appendContext(String sessionId, String message) {
+        // 保存最近 20 条上下文并设置过期时间，兼顾多轮对话和 Redis 空间控制。
         String key = "customer:session:context:" + sessionId;
         redis.opsForList().rightPush(key, message);
         redis.opsForList().trim(key, -CONTEXT_LIMIT, -1);
@@ -169,6 +176,7 @@ public class CustomerConversationService {
     }
 
     private String extractOrderNo(String content) {
+        // 从自然语言中提取订单号，支持用户在追问时省略重复输入。
         Matcher matcher = ORDER_NO.matcher(content == null ? "" : content);
         return matcher.find() ? matcher.group().toUpperCase() : null;
     }

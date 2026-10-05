@@ -8,6 +8,7 @@ import java.util.Optional;
 @Service
 public class FaqService {
     public Optional<FaqAnswer> answer(String question) {
+        // 使用关键词匹配快速回答稳定的售后、配送、支付和人工客服规则。
         String text = question == null ? "" : question.toLowerCase(Locale.ROOT);
         if (containsAny(text, "退款", "退货", "退换")) {
             return Optional.of(new FaqAnswer("AFTER_SALE_POLICY", "未发货订单可以申请取消；已收货商品请在订单详情提交售后申请，具体是否支持退换货以商品规则和店铺审核结果为准。"));
