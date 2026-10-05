@@ -1,0 +1,43 @@
+spring:
+  config:
+    import:
+      - optional:file:./.env[.properties]
+      - optional:file:../.env[.properties]
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
+  application:
+    name: xinghe-trade-center
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:xinghe_trade}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URI:http://localhost:9200}
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+server:
+  port: ${SERVER_PORT:8081}
+xinghe:
+  seed:
+    enabled: ${XINGHE_SEED_ENABLED:false}
+  messaging:
+    enabled: ${XINGHE_MESSAGING_ENABLED:false}
+  customer-service:
+    agent:
+      enabled: ${XINGHE_AGENT_ENABLED:false}
+      api-key: ${XINGHE_AGENT_API_KEY:}
+      base-url: ${XINGHE_AGENT_BASE_URL:https://api.openai.com/v1}
+      model: ${XINGHE_AGENT_MODEL:gpt-4o-mini}
+      timeout: ${XINGHE_AGENT_TIMEOUT:8s}

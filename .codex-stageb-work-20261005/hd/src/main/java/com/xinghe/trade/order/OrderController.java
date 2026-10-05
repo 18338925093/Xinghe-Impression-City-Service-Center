@@ -17,10 +17,8 @@ public class OrderController {
     public ApiResponse<OrderService.OrderResult> create(@RequestHeader("X-User-Id") String userId,
                                                         @Valid @RequestBody CreateOrderRequest request) {
         // 创建订单前校验请求头用户与请求体用户一致，避免冒用其他用户下单。
-        String normalizedUserId = requireSameUser(userId, request.userId());
-        CreateOrderRequest normalizedRequest = new CreateOrderRequest(
-                normalizedUserId, request.skuId(), request.quantity(), request.amount());
-        return ApiResponse.ok(service.create(normalizedRequest));
+        requireSameUser(userId, request.userId());
+        return ApiResponse.ok(service.create(request));
     }
     @PostMapping("/{orderNo}/pay")
     public ApiResponse<OrderService.OrderResult> pay(@PathVariable String orderNo,
@@ -31,13 +29,10 @@ public class OrderController {
     }
 
     // 阶段 A：开发联调期间校验请求头与请求体用户一致，避免订单接口被冒用。
-    private String requireSameUser(String headerUserId, String bodyUserId) {
-        String normalizedHeaderUserId = requireUser(headerUserId);
-        String normalizedBodyUserId = bodyUserId == null ? "" : bodyUserId.trim();
-        if (!normalizedHeaderUserId.equals(normalizedBodyUserId)) {
+    private void requireSameUser(String headerUserId, String bodyUserId) {
+        if (!requireUser(headerUserId).equals(bodyUserId == null ? "" : bodyUserId.trim())) {
             throw new SecurityException("请求用户与订单用户不一致");
         }
-        return normalizedHeaderUserId;
     }
 
     private String requireUser(String userId) {

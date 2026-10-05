@@ -1,0 +1,5 @@
+com\xinghe\trade\order\OrderServiceTest.class
+com\xinghe\trade\order\OrderTimeoutConsumerTest.class
+com\xinghe\trade\customer\CustomerAgentServiceTest.class
+com\xinghe\trade\customer\FaqServiceTest.class
+com\xinghe\trade\customer\OrderQueryServiceTest.class

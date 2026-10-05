@@ -1,0 +1,5 @@
+com\xinghe\trade\dev\DemoDataSeeder.class
+com\xinghe\trade\order\TradeOrder.class
+com\xinghe\trade\order\TradeOrderItemMapper.class
+com\xinghe\trade\order\TradeOrderItem.class
+com\xinghe\trade\order\TradeOrderMapper.class
